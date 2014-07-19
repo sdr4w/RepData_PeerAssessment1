@@ -35,7 +35,12 @@ df.Daily <- sqldf(sql);
 ```
 The next plot is a histogram of the total number of steps taken daily.
 ```{r histogram, fig.height=4,fig.align='center'}
-hist(df.Daily$stepCnt,main='Frequency of Steps Taken Daily',xlab='Steps');
+with(df.Daily,
+     hist(stepCnt,
+          main = 'Frequency of Steps Taken Daily',
+          sub  = 'Ignore Missing values',
+          xlab = 'Steps')
+);
 ```
 An average of `r sprintf('%.3f',mean(df.Daily$stepCnt))` steps are taken daily. The median value of steps taken daily is `r median(df.Daily$stepCnt)`.
 ```{r summary}
@@ -73,7 +78,7 @@ for(i in 1:dim(df.ts)[1]) {
 }
 ```
 The 5-minute interval with maximum average activity is labeled `r sprintf("%i",maxInt)`. It had an average of `r sprintf("%.3f",maxAvg)` steps.
-## Inputing missing values
+## Imputing missing values
 The dataset contains 2304 missing values.  In the dataset, missing values are represented by 'NA's.
 ```{r missing0}
 summary(df);
@@ -92,7 +97,12 @@ summary(df.NoNA);
 Replacing the missing values slightly alters the frequency distribution.
 ```{r missing2, fig.height=4,fig.align='center'}
 df.NoNA.DailyStepCnt <- sqldf("SELECT SUM(steps) AS stepCnt,date FROM NoNA GROUP BY date");
-with(df.NoNA.DailyStepCnt,hist(stepCnt,main='Frequency of Steps Taken Daily',xlab='Steps'));
+with(df.NoNA.DailyStepCnt,
+     hist(stepCnt,
+          main = 'Frequency of Steps Taken Daily',
+          sub  = 'Missing values were imputed',
+          xlab = 'Steps')
+);
 ```
 ```{r missing3,results='hide',echo=FALSE}
 rm(df2,NoNA);

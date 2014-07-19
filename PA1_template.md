@@ -51,7 +51,12 @@ df.Daily <- sqldf(sql);
 The next plot is a histogram of the total number of steps taken daily.
 
 ```r
-hist(df.Daily$stepCnt,main='Frequency of Steps Taken Daily',xlab='Steps');
+with(df.Daily,
+     hist(stepCnt,
+          main = 'Frequency of Steps Taken Daily',
+          sub  = 'Ignore Missing values',
+          xlab = 'Steps')
+);
 ```
 
 <img src="figure/histogram.png" title="plot of chunk histogram" alt="plot of chunk histogram" style="display: block; margin: auto;" />
@@ -100,7 +105,7 @@ with( df.ts,
 <img src="figure/time-series0.png" title="plot of chunk time-series0" alt="plot of chunk time-series0" style="display: block; margin: auto;" />
 
 The 5-minute interval with maximum average activity is labeled 835. It had an average of 206.170 steps.
-## Inputing missing values
+## Imputing missing values
 The dataset contains 2304 missing values.  In the dataset, missing values are represented by 'NA's.
 
 ```r
@@ -143,7 +148,12 @@ Replacing the missing values slightly alters the frequency distribution.
 
 ```r
 df.NoNA.DailyStepCnt <- sqldf("SELECT SUM(steps) AS stepCnt,date FROM NoNA GROUP BY date");
-with(df.NoNA.DailyStepCnt,hist(stepCnt,main='Frequency of Steps Taken Daily',xlab='Steps'));
+with(df.NoNA.DailyStepCnt,
+     hist(stepCnt,
+          main = 'Frequency of Steps Taken Daily',
+          sub  = 'Missing values were imputed',
+          xlab = 'Steps')
+);
 ```
 
 <img src="figure/missing2.png" title="plot of chunk missing2" alt="plot of chunk missing2" style="display: block; margin: auto;" />
