@@ -22,35 +22,66 @@ The dataset is stored in a comma-separated-value (CSV) file and there are a tota
 ## Loading and preprocessing the data
 
 This assignment requires the floowing libraries
-```{r libr,results='hide'}
+
+```r
 library("xtable");
 library("sqldf");
 ```
+
+```
+## Loading required package: gsubfn
+## Loading required package: proto
+## Loading required package: RSQLite
+## Loading required package: DBI
+## Loading required package: RSQLite.extfuns
+```
 Load dataset into a data frame.
-```{r}
+
+```r
 df <- read.csv("activity.csv",sep=",");
 ```
 
 ## What is mean total number of steps taken per day?
 
 Use a SQL query statement to group records by date and count the number of steps each day. Records with missing values for "steps" are ignored. 
-```{r meanSteps,results='hide'}
+
+```r
 sql <- "SELECT SUM(steps) AS stepCnt,date,interval FROM df WHERE steps <> 'NA' GROUP BY date";
 df.Daily <- sqldf(sql);
 ```
+
+```
+## Loading required package: tcltk
+```
 The next plot is a histogram of the total number of steps taken daily.
-```{r histogram, fig.height=4,fig.align='center'}
+
+```r
 hist(df.Daily$stepCnt,main='Frequency of Steps Taken Daily',xlab='Steps');
 ```
-An average of `r mean(df.Daily$stepCnt)` steps are taken daily. The median number of steps taken daily is `r median(df.Daily$stepCnt)`.
-```{r summary}
+
+<img src="figure/histogram.png" title="plot of chunk histogram" alt="plot of chunk histogram" style="display: block; margin: auto;" />
+An average of 1.0766 &times; 10<sup>4</sup> steps are taken daily. The median number of steps taken daily is 10765.
+
+```r
 summary(df.Daily);
+```
+
+```
+##     stepCnt              date       interval   
+##  Min.   :   41   2012-10-02: 1   Min.   :2355  
+##  1st Qu.: 8841   2012-10-03: 1   1st Qu.:2355  
+##  Median :10765   2012-10-04: 1   Median :2355  
+##  Mean   :10766   2012-10-05: 1   Mean   :2355  
+##  3rd Qu.:13294   2012-10-06: 1   3rd Qu.:2355  
+##  Max.   :21194   2012-10-07: 1   Max.   :2355  
+##                  (Other)   :47
 ```
 
 ## What is the average daily activity pattern?
 
 Use a SQL query statement to select complete records. Create a new variable 
-``` {r time-series, fig.height=4,fig.align='center'}
+
+```r
 df.ts <- sqldf("SELECT * FROM df WHERE steps <> 'NA'");
 df.ts$dateTime <- strptime(
     sprintf("%s %02d:%02d:%02d", 
@@ -64,14 +95,29 @@ df.ts$dateTime <- strptime(
 with(df.ts,plot(dateTime,steps,type='l'));
 ```
 
+<img src="figure/time-series.png" title="plot of chunk time-series" alt="plot of chunk time-series" style="display: block; margin: auto;" />
+
 ## Inputing missing values
 
-The data contains 2304 missing values.
-```{r missing0}
+The data contains 2304 missing values.  I
+
+```r
 summary(df);
 ```
+
+```
+##      steps               date          interval   
+##  Min.   :  0.0   2012-10-01:  288   Min.   :   0  
+##  1st Qu.:  0.0   2012-10-02:  288   1st Qu.: 589  
+##  Median :  0.0   2012-10-03:  288   Median :1178  
+##  Mean   : 37.4   2012-10-04:  288   Mean   :1178  
+##  3rd Qu.: 12.0   2012-10-05:  288   3rd Qu.:1766  
+##  Max.   :806.0   2012-10-06:  288   Max.   :2355  
+##  NA's   :2304    (Other)   :15840
+```
 The strategy for filling in all of the missing values in the dataset is use the rounded mean for that 5-minute interval.
-```{r missing1}
+
+```r
 df2  <- sqldf("SELECT AVG(steps) AS stepAvg,date,interval FROM df WHERE steps <> 'NA' GROUP BY interval");
 NoNA <- sqldf("SELECT ROUND(CASE WHEN df.steps IS NULL THEN df2.stepAvg ELSE df.steps END,0) AS steps,df2.stepAvg,df.date,df.interval FROM df JOIN df2 ON df.interval=df2.interval")
 df.NoNA <- data.frame(
@@ -81,16 +127,33 @@ df.NoNA <- data.frame(
 );
 summary(df.NoNA);
 ```
+
+```
+##      steps            date                        interval   
+##  Min.   :  0.0   Min.   :2012-10-01 00:00:00   Min.   :   0  
+##  1st Qu.:  0.0   1st Qu.:2012-10-16 05:58:45   1st Qu.: 589  
+##  Median :  0.0   Median :2012-10-31 11:57:30   Median :1178  
+##  Mean   : 37.4   Mean   :2012-10-31 12:23:59   Mean   :1178  
+##  3rd Qu.: 27.0   3rd Qu.:2012-11-15 17:56:15   3rd Qu.:1766  
+##  Max.   :806.0   Max.   :2012-11-30 23:55:00   Max.   :2355
+```
 Replacing the missing values slightly alters the frequency distribution.
-```{r missing2, fig.height=4,fig.align='center'}
+
+```r
 df.NoNA.DailyStepCnt <- sqldf("SELECT SUM(steps) AS stepCnt,date FROM NoNA GROUP BY date");
 with(df.NoNA.DailyStepCnt,hist(stepCnt,main='Frequency of Steps Taken Daily',xlab='Steps'));
+```
+
+<img src="figure/missing2.png" title="plot of chunk missing2" alt="plot of chunk missing2" style="display: block; margin: auto;" />
+
+```r
 rm(df2,NoNA);
 ```
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
-```{r weekdays,fig.align='center'}
+
+```r
 df.NoNA$dayOfWeek <- factor( 
     ifelse( 
         weekdays(df.NoNA$date)=="Saturday" | weekdays(df.NoNA$date)=="Sunday",
@@ -99,6 +162,26 @@ df.NoNA$dayOfWeek <- factor(
     )
 );
 summary(df.NoNA);
+```
+
+```
+##      steps            date                        interval   
+##  Min.   :  0.0   Min.   :2012-10-01 00:00:00   Min.   :   0  
+##  1st Qu.:  0.0   1st Qu.:2012-10-16 05:58:45   1st Qu.: 589  
+##  Median :  0.0   Median :2012-10-31 11:57:30   Median :1178  
+##  Mean   : 37.4   Mean   :2012-10-31 12:23:59   Mean   :1178  
+##  3rd Qu.: 27.0   3rd Qu.:2012-11-15 17:56:15   3rd Qu.:1766  
+##  Max.   :806.0   Max.   :2012-11-30 23:55:00   Max.   :2355  
+##    dayOfWeek    
+##  weekday:12960  
+##  weekend: 4608  
+##                 
+##                 
+##                 
+## 
+```
+
+```r
 df.weekend <- NULL;
 df.weekday <- NULL;
 for(i in 0:288) {
@@ -111,5 +194,6 @@ for(i in 0:288) {
 par(mfrow=c(2,1),pty="m");
 with(df.weekday,plot(interval,avgSteps,main="Weekday",xlab="",ylab="Number of Steps",type="l"));
 with(df.weekend,plot(interval,avgSteps,main="Weekend",xlab="Interval",ylab="Number of Steps",type="l"));
-
 ```
+
+<img src="figure/weekdays.png" title="plot of chunk weekdays" alt="plot of chunk weekdays" style="display: block; margin: auto;" />
