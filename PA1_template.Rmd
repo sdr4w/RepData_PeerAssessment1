@@ -4,9 +4,7 @@
 It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
 
 This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
-
 ## Data
-
 The data for this assignment can be downloaded from web site:
 
 *   Dataset: [Activity monitoring data, 52K](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip)
@@ -18,11 +16,10 @@ The variables included in this dataset are:
 *   interval: Identifier for the 5-minute interval in which measurement was taken
 
 The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
-
 ## Loading and preprocessing the data
-
 This assignment requires the floowing libraries
 ```{r libr,results='hide'}
+library("lattice");
 library("xtable");
 library("sqldf");
 ```
@@ -30,9 +27,7 @@ Load dataset into a data frame.
 ```{r}
 df <- read.csv("activity.csv",sep=",");
 ```
-
 ## What is mean total number of steps taken per day?
-
 Use a SQL query statement to group records by date and count the number of steps each day. Records with missing values for "steps" are ignored. 
 ```{r meanSteps,results='hide'}
 sql <- "SELECT SUM(steps) AS stepCnt,date,interval FROM df WHERE steps <> 'NA' GROUP BY date";
@@ -42,16 +37,15 @@ The next plot is a histogram of the total number of steps taken daily.
 ```{r histogram, fig.height=4,fig.align='center'}
 hist(df.Daily$stepCnt,main='Frequency of Steps Taken Daily',xlab='Steps');
 ```
-An average of `r mean(df.Daily$stepCnt)` steps are taken daily. The median number of steps taken daily is `r median(df.Daily$stepCnt)`.
+An average of `r sprintf('%.3f',mean(df.Daily$stepCnt))` steps are taken daily. The median value of steps taken daily is `r median(df.Daily$stepCnt)`.
 ```{r summary}
 summary(df.Daily);
 ```
-
 ## What is the average daily activity pattern?
-
-Use a SQL query statement to select complete records. Create a new variable 
-``` {r time-series, fig.height=4,fig.align='center'}
-df.ts <- sqldf("SELECT * FROM df WHERE steps <> 'NA'");
+Use a SQL query statement to select complete records. Make a time series plot of the 5-minute interval and the average number of steps taken, averaged across all days. 
+``` {r time-series0, fig.height=4,fig.align='center'}
+sql <- "SELECT AVG(steps) AS stepAvg,date,interval FROM df WHERE steps <> 'NA' GROUP BY interval";
+df.ts <- sqldf(sql);
 df.ts$dateTime <- strptime(
     sprintf("%s %02d:%02d:%02d", 
             df.ts$date, 
@@ -61,16 +55,30 @@ df.ts$dateTime <- strptime(
     format = "%Y-%m-%d %T", 
     tz     = ""
 ); 
-with(df.ts,plot(dateTime,steps,type='l'));
+with( df.ts,
+    {
+      plot(interval,stepAvg,
+         type = 'l',
+         main = 'Average Daily Activity Pattern',
+         ylab = 'Average Steps')
+      grid()        
+    }
+);
 ```
-
+``` {r time-series1,echo=FALSE}
+maxInt <- 0;
+maxAvg <- max(df.ts$stepAvg);
+for(i in 1:dim(df.ts)[1]) {
+    if( df.ts$stepAvg[i] == maxAvg ) maxInt <- df.ts$interval[i];
+}
+```
+The 5-minute interval with maximum average activity is labeled `r sprintf("%i",maxInt)`. It had an average of `r sprintf("%.3f",maxAvg)` steps.
 ## Inputing missing values
-
-The data contains 2304 missing values.
+The dataset contains 2304 missing values.  In the dataset, missing values are represented by 'NA's.
 ```{r missing0}
 summary(df);
 ```
-The strategy for filling in all of the missing values in the dataset is use the rounded mean for that 5-minute interval.
+The strategy for filling in all of the missing values in the dataset is to use the rounded mean for that 5-minute interval.
 ```{r missing1}
 df2  <- sqldf("SELECT AVG(steps) AS stepAvg,date,interval FROM df WHERE steps <> 'NA' GROUP BY interval");
 NoNA <- sqldf("SELECT ROUND(CASE WHEN df.steps IS NULL THEN df2.stepAvg ELSE df.steps END,0) AS steps,df2.stepAvg,df.date,df.interval FROM df JOIN df2 ON df.interval=df2.interval")
@@ -85,12 +93,13 @@ Replacing the missing values slightly alters the frequency distribution.
 ```{r missing2, fig.height=4,fig.align='center'}
 df.NoNA.DailyStepCnt <- sqldf("SELECT SUM(steps) AS stepCnt,date FROM NoNA GROUP BY date");
 with(df.NoNA.DailyStepCnt,hist(stepCnt,main='Frequency of Steps Taken Daily',xlab='Steps'));
+```
+```{r missing3,results='hide',echo=FALSE}
 rm(df2,NoNA);
 ```
-
 ## Are there differences in activity patterns between weekdays and weekends?
-
-```{r weekdays,fig.align='center'}
+Identify if an observation occurs on a weekday or weekend. Add this identifier as a new variable to the dataset.
+```{r weekdays0,fig.align='center'}
 df.NoNA$dayOfWeek <- factor( 
     ifelse( 
         weekdays(df.NoNA$date)=="Saturday" | weekdays(df.NoNA$date)=="Sunday",
@@ -99,17 +108,44 @@ df.NoNA$dayOfWeek <- factor(
     )
 );
 summary(df.NoNA);
+```
+Calculate the average number of steps taken per interval, averaged across all weekdays or weekend days.
+```{r weekdays1}
 df.weekend <- NULL;
 df.weekday <- NULL;
-for(i in 0:288) {
+for( i in 0:288 ) {
     n = i * 5;
     tmp <- subset(df.NoNA,dayOfWeek=='weekend'&interval==n);
-    if(dim(tmp)[1]) df.weekend <- rbind(df.weekend,data.frame(interval=n, avgSteps=mean(tmp$steps)));
+    if( dim(tmp)[1] ) {
+        irow <- data.frame(
+            interval  = n, 
+            avgSteps  = mean(tmp$steps), 
+            dayOfWeek = 'weekend'
+        );
+        df.weekend <- rbind( df.weekend, irow );
+    }
     tmp <- subset(df.NoNA,dayOfWeek=='weekday'&interval==n);
-    if(dim(tmp)[1]) df.weekday <- rbind(df.weekday,data.frame(interval=n, avgSteps=mean(tmp$steps)));
+    if( dim(tmp)[1] ) {
+        irow <- data.frame(
+            interval  = n, 
+            avgSteps  = mean(tmp$steps), 
+            dayOfWeek = 'weekday'
+        );
+        df.weekday <- rbind( df.weekday, irow );
+    }
 }
-par(mfrow=c(2,1),pty="m");
-with(df.weekday,plot(interval,avgSteps,main="Weekday",xlab="",ylab="Number of Steps",type="l"));
-with(df.weekend,plot(interval,avgSteps,main="Weekend",xlab="Interval",ylab="Number of Steps",type="l"));
-
+summary(df.weekday$avgSteps);
+summary(df.weekend$avgSteps);
+```
+There is a slight difference in the peak average activity on a weekday versus a weekend. On average, slightly more activity occurs on a weekday. The plot below shows the activity comparison between weekdays and weekends:
+```{r weekdays2,fig.align='center'}
+xyplot(
+    avgSteps ~ interval | dayOfWeek, 
+    data   = rbind(df.weekday,df.weekend), 
+    type   = "l", 
+    grid   = TRUE,
+    main   = "Compare: Weekday Vs. Weekend",
+    ylab   = "Average Steps Taken", 
+    layout = c(1,2,1)
+);
 ```
